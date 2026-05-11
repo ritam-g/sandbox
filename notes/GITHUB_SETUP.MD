@@ -1,115 +1,26 @@
-Alright Ritam, here’s the proper workflow you should follow whenever you open your GitHub Codespace for this project.
+# ✅ GitHub Codespaces + Kubernetes Workflow Guide
 
-# ✅ FIRST: How To Stop Everything Properly
+Save this as:
 
-Since many ports/services are running, stop them cleanly before closing Codespace.
-
-## 1. Stop Skaffold (if running)
-
-If terminal is stuck showing logs:
-
-Press:
-
-```bash
-CTRL + C
-```
-
-This stops:
-
-* auto rebuild
-* auto deploy
-* live logs
-
----
-
-## 2. Stop Port Forwarding Processes
-
-Check running processes:
-
-```bash
-ps aux | grep kubectl
-```
-
-If you see:
-
-* port-forward
-* proxy
-* kubectl running
-
-Kill them:
-
-```bash
-pkill -f kubectl
+```txt
+notes/GITHUB_SETUP.md
 ```
 
 ---
 
-## 3. Stop Node Servers (optional)
+# 🚀 PROJECT STARTUP WORKFLOW
 
-```bash
-pkill node
-```
-
-This stops local Node.js servers.
+Whenever you open GitHub Codespaces, follow these steps.
 
 ---
 
-## 4. Stop Kubernetes Cluster (Optional)
-
-If using K3s/k3d/minikube and want full shutdown:
-
-For K3s:
-
-```bash
-sudo systemctl stop k3s
-```
-
-OR for k3d:
-
-```bash
-k3d cluster stop
-```
-
-(Depends what your mentor used.)
-
----
-
-# ✅ BEFORE LEAVING CODESPACE
-
-Always save changes:
-
-```bash
-git status
-```
-
-Then:
-
-```bash
-git add .
-git commit -m "progress update"
-```
-
-(Optional push)
-
-```bash
-git push
-```
-
-This is VERY important.
-
----
-
-# 🚀 WHEN YOU COME BACK AGAIN
-
-Follow this order.
-
-# STEP 1 — Open Project
+# 1️⃣ Open Project
 
 ```bash
 cd /workspaces/codespaces-blank
 ```
 
-Check files:
+Check folders:
 
 ```bash
 ls
@@ -117,21 +28,18 @@ ls
 
 You should see:
 
-* frontend
-* sandbox
-* k8s
-* template
-* skaffold.yml
+```txt
+frontend
+sandbox
+sandbox-agents
+k8s
+template
+skaffold.yml
+```
 
 ---
 
-# STEP 2 — Start Kubernetes
-
-If K3s:
-
-```bash
-sudo systemctl start k3s
-```
+# 2️⃣ Start Kubernetes Cluster
 
 Check cluster:
 
@@ -139,32 +47,104 @@ Check cluster:
 kubectl get nodes
 ```
 
-You should see:
+If connection refused happens:
 
 ```bash
-Ready
+kind create cluster
+```
+
+Check again:
+
+```bash
+kubectl get nodes
+```
+
+Expected:
+
+```txt
+STATUS = Ready
 ```
 
 ---
 
-# STEP 3 — Check Docker Images
+# 3️⃣ Check Docker Images
 
 ```bash
 docker images
 ```
 
-Verify:
+You should see:
 
-* sandbox
-* sandbox-agent
-* sandbox-sync
-* template
-
-exist.
+```txt
+sandbox:latest
+sandbox-agent:latest
+sandbox-sync:latest
+template:latest
+```
 
 ---
 
-# STEP 4 — Apply Kubernetes Files
+# 4️⃣ Build Images (If Needed)
+
+## Backend
+
+```bash
+docker build -t sandbox:latest ./sandbox
+```
+
+---
+
+## Frontend
+
+```bash
+docker build -t template:latest ./template
+```
+
+---
+
+## Comm Agent
+
+```bash
+docker build -t sandbox-agent:latest ./sandbox-agents/comm-agent
+```
+
+---
+
+## Sync Agent
+
+```bash
+docker build -t sandbox-sync:latest -f sandbox-agents/sync-agent/dockerfile .
+```
+
+---
+
+# 5️⃣ Load Images Into KIND
+
+VERY IMPORTANT.
+
+Kind cluster cannot automatically see local Docker images.
+
+Load them manually:
+
+```bash
+kind load docker-image sandbox:latest
+```
+
+```bash
+kind load docker-image template:latest
+```
+
+```bash
+kind load docker-image sandbox-agent:latest
+```
+
+```bash
+kind load docker-image sandbox-sync:latest
+```
+
+---
+
+# 6️⃣ Apply Kubernetes Files
 
 ```bash
 kubectl apply -f k8s/
@@ -172,21 +152,33 @@ kubectl apply -f k8s/
 
 ---
 
-# STEP 5 — Check Pods
+# 7️⃣ Restart Deployments
 
 ```bash
-kubectl get pods
+kubectl rollout restart deployment sandbox-deployment
 ```
 
-Wait until:
-
 ```bash
-Running
+kubectl rollout restart deployment frontend-deployment
 ```
 
 ---
 
-# STEP 6 — Check Services
+# 8️⃣ Check Pods
+
+```bash
+kubectl get pods -w
+```
+
+Wait until:
+
+```txt
+1/1 Running
+```
+
+---
+
+# 9️⃣ Check Services
 
 ```bash
 kubectl get svc
@@ -194,55 +186,37 @@ kubectl get svc
 
 ---
 
-# STEP 7 — Check Ingress
+# 🔟 Port Forwarding
+
+## Frontend
 
 ```bash
-kubectl get ingress
+kubectl port-forward service/frontend-service 5173:80
+```
+
+Open:
+
+```txt
+https://<codespace-url>-5173.app.github.dev
 ```
 
 ---
 
-# STEP 8 — View Logs (IMPORTANT)
-
-Backend logs:
+## Backend
 
 ```bash
-kubectl logs -f deployment/sandbox
+kubectl port-forward service/sandbox-service 3000:80
 ```
 
-Frontend logs:
+Open:
 
-```bash
-kubectl logs -f deployment/frontend
-```
-
----
-
-# STEP 9 — Start Skaffold (Optional)
-
-When developing:
-
-```bash
-skaffold dev
-```
-
-This automatically:
-
-* rebuilds images
-* redeploys
-* watches changes
-
-Stop using:
-
-```bash
-CTRL + C
+```txt
+https://<codespace-url>-3000.app.github.dev
 ```
 
 ---
 
-# 🔥 MOST IMPORTANT DEBUG COMMANDS
-
-These are your daily commands now:
+# 📜 Useful Debug Commands
 
 ## Pods
 
@@ -270,13 +244,23 @@ kubectl get deployments
 
 ## Logs
 
+## Frontend
+
 ```bash
-kubectl logs -f deployment/sandbox
+kubectl logs deployment/frontend-deployment
 ```
 
 ---
 
-## Describe Errors
+## Backend
+
+```bash
+kubectl logs deployment/sandbox-deployment
+```
+
+---
+
+## Describe Pod Errors
 
 ```bash
 kubectl describe pod <pod-name>
@@ -284,45 +268,213 @@ kubectl describe pod <pod-name>
 
 ---
 
-## Restart Deployment
+# ⚠️ IMPORTANT KUBERNETES LEARNING
+
+## ErrImagePull
+
+Means:
+
+```txt
+Kubernetes cannot find Docker image
+```
+
+Fix:
 
 ```bash
-kubectl rollout restart deployment sandbox
+kind load docker-image <image-name>
 ```
 
 ---
 
-# ✅ YOUR NORMAL DAILY FLOW
+## ImagePullBackOff
 
-Whenever you open Codespace:
+Means:
+
+```txt
+Kubernetes repeatedly failed to pull image
+```
+
+Usually same issue.
+
+---
+
+## Connection Refused
+
+Means:
+
+```txt
+Cluster is stopped
+```
+
+Fix:
 
 ```bash
-cd /workspaces/codespaces-blank
-sudo systemctl start k3s
-kubectl get nodes
-kubectl apply -f k8s/
-kubectl get pods
+kind create cluster
+```
+
+---
+
+## Port Forward Lost Connection
+
+Means:
+
+```txt
+Pod restarted or got deleted
+```
+
+Fix:
+
+Run port-forward again.
+
+---
+
+# 🔥 SKAFFOLD COMMANDS
+
+## Start Development Mode
+
+```bash
 skaffold dev
 ```
 
-That is basically your startup workflow.
+This automatically:
+
+* rebuilds images
+* redeploys pods
+* watches file changes
 
 ---
 
-# ⚠️ VERY IMPORTANT LEARNING
+## Stop Skaffold
 
-Now your project is entering real DevOps workflow.
+Press:
 
-The main skill now is NOT coding.
+```bash
+CTRL + C
+```
 
-The main skill is:
+---
 
-* debugging
-* checking logs
-* understanding pods
-* networking
-* deployments
-* services
-* ingress
+# 🛑 BEFORE TURNING OFF LAPTOP
 
-This phase feels confusing initially for everyone.
+VERY IMPORTANT.
+
+Follow these steps.
+
+---
+
+# 1️⃣ Stop Port Forwarding
+
+In terminal running:
+
+```bash
+kubectl port-forward
+```
+
+Press:
+
+```bash
+CTRL + C
+```
+
+---
+
+# 2️⃣ Stop Skaffold
+
+If running:
+
+```bash
+CTRL + C
+```
+
+---
+
+# 3️⃣ Stop Extra Node Processes
+
+```bash
+pkill node
+```
+
+---
+
+# 4️⃣ Stop Kubectl Processes
+
+```bash
+pkill -f kubectl
+```
+
+---
+
+# 5️⃣ Save Git Changes
+
+Check status:
+
+```bash
+git status
+```
+
+Add files:
+
+```bash
+git add .
+```
+
+Commit:
+
+```bash
+git commit -m "progress update"
+```
+
+Push:
+
+```bash
+git push
+```
+
+---
+
+# ✅ DAILY WORKFLOW SUMMARY
+
+When opening Codespaces:
+
+```bash
+cd /workspaces/codespaces-blank
+
+kubectl get nodes
+
+docker images
+
+kind load docker-image sandbox:latest
+kind load docker-image template:latest
+kind load docker-image sandbox-agent:latest
+kind load docker-image sandbox-sync:latest
+
+kubectl apply -f k8s/
+
+kubectl rollout restart deployment sandbox-deployment
+kubectl rollout restart deployment frontend-deployment
+
+kubectl get pods -w
+
+kubectl port-forward service/frontend-service 5173:80
+```
+
+---
+
+# ✅ CURRENT PROJECT STATUS
+
+You Successfully Completed:
+
+✅ Docker setup
+✅ Kubernetes cluster
+✅ KIND cluster
+✅ Kubernetes deployments
+✅ Services
+✅ Port forwarding
+✅ Frontend container
+✅ Backend container
+✅ Docker image builds
+✅ Image loading into KIND
+✅ Skaffold installation
+✅ Kubernetes debugging basics
+
+You are now officially working in a real DevOps-style workflow.

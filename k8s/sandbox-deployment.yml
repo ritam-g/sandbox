@@ -15,8 +15,9 @@ spec:
         app: sandbox
     spec:
       containers:
-      - image:  sandbox:latest
-        name:  sandbox
+      - image: sandbox:latest
+        imagePullPolicy: Never
+        name: sandbox
         resources:
           requests:
             cpu: "300m"

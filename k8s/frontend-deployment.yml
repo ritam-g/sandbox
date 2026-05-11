@@ -15,8 +15,8 @@ spec:
         app: frontend
     spec:
       containers:
-      - image:  frontend:latest
-        imagePullPolicy: IfNotPresent
+      - image:  template:latest
+        imagePullPolicy: Never
         name:  frontend
         resources:
           requests:
